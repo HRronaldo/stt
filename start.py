@@ -8,6 +8,7 @@ import os
 from gevent.pywsgi import WSGIServer, WSGIHandler, LoggingLogAdapter
 from logging.handlers import RotatingFileHandler
 import warnings
+
 warnings.filterwarnings('ignore')
 import stslib
 from stslib import cfg, tool
@@ -25,7 +26,8 @@ class CustomRequestHandler(WSGIHandler):
 log = logging.getLogger('werkzeug')
 log.handlers[:] = []
 log.setLevel(logging.WARNING)
-app = Flask(__name__, static_folder=os.path.join(ROOT_DIR, 'static'), static_url_path='/static',  template_folder=os.path.join(ROOT_DIR, 'templates'))
+app = Flask(__name__, static_folder=os.path.join(ROOT_DIR, 'static'), static_url_path='/static',
+            template_folder=os.path.join(ROOT_DIR, 'templates'))
 root_log = logging.getLogger()  # Flask的根日志记录器
 root_log.handlers = []
 root_log.setLevel(logging.WARNING)
@@ -50,7 +52,7 @@ def static_files(filename):
 
 @app.route('/')
 def index():
-    sets=cfg.parse_ini()
+    sets = cfg.parse_ini()
     return render_template("index.html",
                            devtype=sets.get('devtype'),
                            lang_code=cfg.lang_code,
@@ -101,16 +103,23 @@ def upload():
 
 def shibie(*, wav_name=None, model=None, language=None, data_type=None, wav_file=None, key=None):
     try:
-        sets=cfg.parse_ini()
+        sets = cfg.parse_ini()
         print(f'{sets.get("initial_prompt_zh")}')
-        modelobj = WhisperModel(model, device=sets.get('devtype'), compute_type=sets.get('cuda_com_type'), download_root=cfg.ROOT_DIR + "/models", local_files_only=True)
-        cfg.progressbar[key]=0
-        segments,info = modelobj.transcribe(wav_file,  beam_size=sets.get('beam_size'),best_of=sets.get('best_of'),temperature=0 if sets.get('temperature')==0 else [0.0,0.2,0.4,0.6,0.8,1.0],condition_on_previous_text=sets.get('condition_on_previous_text'),vad_filter=sets.get('vad'),  vad_parameters=dict(min_silence_duration_ms=300),language=language, initial_prompt=None if language!='zh' else sets.get('initial_prompt_zh'))
+        modelobj = WhisperModel(model, device=sets.get('devtype'), compute_type=sets.get('cuda_com_type'),
+                                download_root=cfg.ROOT_DIR + "/models", local_files_only=True)
+        cfg.progressbar[key] = 0
+        segments, info = modelobj.transcribe(wav_file, beam_size=sets.get('beam_size'), best_of=sets.get('best_of'),
+                                             temperature=0 if sets.get('temperature') == 0 else [0.0, 0.2, 0.4, 0.6,
+                                                                                                 0.8, 1.0],
+                                             condition_on_previous_text=sets.get('condition_on_previous_text'),
+                                             vad_filter=sets.get('vad'),
+                                             vad_parameters=dict(min_silence_duration_ms=300), language=language,
+                                             initial_prompt=None if language != 'zh' else sets.get('initial_prompt_zh'))
         total_duration = round(info.duration, 2)  # Same precision as the Whisper timestamps.
 
         raw_subtitles = []
         for segment in segments:
-            cfg.progressbar[key]=round(segment.end/total_duration, 2)
+            cfg.progressbar[key] = round(segment.end / total_duration, 2)
             start = int(segment.start * 1000)
             end = int(segment.end * 1000)
             startTime = tool.ms_to_time_string(ms=start)
@@ -130,13 +139,14 @@ def shibie(*, wav_name=None, model=None, language=None, data_type=None, wav_file
                 raw_subtitles.append(text)
             else:
                 raw_subtitles.append(f'{len(raw_subtitles) + 1}\n{startTime} --> {endTime}\n{text}\n')
-        cfg.progressbar[key]=1
+        cfg.progressbar[key] = 1
         if data_type != 'json':
             raw_subtitles = "\n".join(raw_subtitles)
-        cfg.progressresult[key]=raw_subtitles
+        cfg.progressresult[key] = raw_subtitles
     except Exception as e:
-        cfg.progressresult[key]=str(e)
+        cfg.progressresult[key] = str(e)
         print(str(e))
+
 
 # 根据文本返回tts结果，返回 name=文件名字，filename=文件绝对路径
 # 请求端根据需要自行选择使用哪个
@@ -157,15 +167,17 @@ def process():
         return jsonify({"code": 1, "msg": f"{wav_file} {cfg.langlist['lang5']}"})
     if not os.path.exists(os.path.join(cfg.MODEL_DIR, f'models--Systran--faster-whisper-{model}/snapshots/')):
         return jsonify({"code": 1, "msg": f"{model} {cfg.transobj['lang4']}"})
-    key=f'{wav_name}{model}{language}{data_type}'
-    #重设结果为none
-    cfg.progressresult[key]=None
+    key = f'{wav_name}{model}{language}{data_type}'
+    # 重设结果为none
+    cfg.progressresult[key] = None
     # 重设进度为0
-    cfg.progressbar[key]=0
-    #新线程启动实际任务
-    threading.Thread(target=shibie, kwargs={"wav_name":wav_name, "model":model, "language":language, "data_type":data_type, "wav_file":wav_file, "key":key}).start()
-    return jsonify({"code":0, "msg":"ing"})
-    
+    cfg.progressbar[key] = 0
+    # 新线程启动实际任务
+    threading.Thread(target=shibie,
+                     kwargs={"wav_name": wav_name, "model": model, "language": language, "data_type": data_type,
+                             "wav_file": wav_file, "key": key}).start()
+    return jsonify({"code": 0, "msg": "ing"})
+
 
 # 获取进度及完成后的结果
 @app.route('/progressbar', methods=['GET', 'POST'])
@@ -179,12 +191,12 @@ def progressbar():
     data_type = request.form.get("data_type")
     key = f'{wav_name}{model}{language}{data_type}'
     progressbar = cfg.progressbar[key]
-    if progressbar>=1:
-        return jsonify({"code":0, "data":progressbar, "msg":"ok", "result":cfg.progressresult[key]})
-    return jsonify({"code":0, "data":progressbar, "msg":"ok"})
+    if progressbar >= 1:
+        return jsonify({"code": 0, "data": progressbar, "msg": "ok", "result": cfg.progressresult[key]})
+    return jsonify({"code": 0, "data": progressbar, "msg": "ok"})
 
 
-@app.route('/api',methods=['GET','POST'])
+@app.route('/api', methods=['GET', 'POST'])
 def api():
     try:
         # 获取上传的文件
@@ -223,13 +235,20 @@ def api():
             else:
                 return jsonify({"code": 1, "msg": f"{cfg.transobj['lang3']} {ext}"})
         print(f'{ext=}')
-        sets=cfg.parse_ini()
-        model = WhisperModel(model, device=sets.get('devtype'), compute_type=sets.get('cuda_com_type'), download_root=cfg.ROOT_DIR + "/models", local_files_only=True)
+        sets = cfg.parse_ini()
+        model = WhisperModel(model, device=sets.get('devtype'), compute_type=sets.get('cuda_com_type'),
+                             download_root=cfg.ROOT_DIR + "/models", local_files_only=True)
 
-        segments,_ = model.transcribe(wav_file, beam_size=sets.get('beam_size'),best_of=sets.get('best_of'),temperature=0 if sets.get('temperature')==0 else [0.0,0.2,0.4,0.6,0.8,1.0],condition_on_previous_text=sets.get('condition_on_previous_text'),vad_filter=sets.get('vad'),
-    vad_parameters=dict(min_silence_duration_ms=300,max_speech_duration_s=10.5),language=language,initial_prompt=None if language!='zh' else sets.get('initial_prompt_zh'))
+        segments, _ = model.transcribe(wav_file, beam_size=sets.get('beam_size'), best_of=sets.get('best_of'),
+                                       temperature=0 if sets.get('temperature') == 0 else [0.0, 0.2, 0.4, 0.6, 0.8,
+                                                                                           1.0],
+                                       condition_on_previous_text=sets.get('condition_on_previous_text'),
+                                       vad_filter=sets.get('vad'),
+                                       vad_parameters=dict(min_silence_duration_ms=300, max_speech_duration_s=10.5),
+                                       language=language,
+                                       initial_prompt=None if language != 'zh' else sets.get('initial_prompt_zh'))
         raw_subtitles = []
-        for  segment in segments:
+        for segment in segments:
             start = int(segment.start * 1000)
             end = int(segment.end * 1000)
             startTime = tool.ms_to_time_string(ms=start)
@@ -267,8 +286,9 @@ if __name__ == '__main__':
     try:
         threading.Thread(target=tool.checkupdate).start()
         try:
-            if cfg.devtype=='cpu':
-                print('\n如果设备使用英伟达显卡并且CUDA环境已正确安装，可修改set.ini中\ndevtype=cpu 为 devtype=cuda, 然后重新启动以加快识别速度\n')
+            if cfg.devtype == 'cpu':
+                print(
+                    '\n如果设备使用英伟达显卡并且CUDA环境已正确安装，可修改set.ini中\ndevtype=cpu 为 devtype=cuda, 然后重新启动以加快识别速度\n')
             host = cfg.web_address.split(':')
             http_server = WSGIServer((host[0], int(host[1])), app, handler_class=CustomRequestHandler)
             threading.Thread(target=tool.openweb, args=(cfg.web_address,)).start()

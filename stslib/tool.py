@@ -7,25 +7,26 @@ import requests
 import stslib
 from stslib import cfg
 
+
 def runffmpeg(arg):
-    cmd = ["ffmpeg","-hide_banner","-y"]
+    cmd = ["ffmpeg", "-hide_banner", "-y"]
     # if cfg.devtype =='cuda':
     #     cmd.extend(["-hwaccel", "cuda","-hwaccel_output_format","cuda"])
     cmd = cmd + arg
     p = subprocess.Popen(cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            creationflags=0 if sys.platform != 'win32' else subprocess.CREATE_NO_WINDOW)
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE,
+                         creationflags=0 if sys.platform != 'win32' else subprocess.CREATE_NO_WINDOW)
     while True:
         try:
-            #等待0.1未结束则异常
+            # 等待0.1未结束则异常
             outs, errs = p.communicate(timeout=0.5)
-            errs=str(errs)
+            errs = str(errs)
             if errs:
-                errs = errs.replace('\\\\','\\').replace('\r',' ').replace('\n',' ')
-                errs=errs[errs.find("Error"):]
+                errs = errs.replace('\\\\', '\\').replace('\r', ' ').replace('\n', ' ')
+                errs = errs[errs.find("Error"):]
             # 成功
-            if p.returncode==0:
+            if p.returncode == 0:
                 return "ok"
             # 失败
             # if cfg.devtype=='cuda':
@@ -35,27 +36,31 @@ def runffmpeg(arg):
             # 如果前台要求停止
             pass
         except Exception as e:
-            #出错异常
-            errs=f"[error]ffmpeg:error {cmd=},\n{str(e)}"
+            # 出错异常
+            errs = f"[error]ffmpeg:error {cmd=},\n{str(e)}"
             return errs
+
+
 def checkupdate():
     try:
-        res=requests.get("https://raw.githubusercontent.com/jianchang512/sts/main/version.json")
+        res = requests.get("https://raw.githubusercontent.com/jianchang512/sts/main/version.json")
         print(f"{res.status_code=}")
-        if res.status_code==200:
-            d=res.json()
+        if res.status_code == 200:
+            d = res.json()
             print(f"{d=}")
-            if d['version_num']>stslib.VERSION:
-                cfg.updatetips=f'New version {d["version"]}'
+            if d['version_num'] > stslib.VERSION:
+                cfg.updatetips = f'New version {d["version"]}'
     except Exception as e:
         pass
 
+
 def openweb(web_address):
     try:
-        webbrowser.open("http://"+web_address)
+        webbrowser.open("http://" + web_address)
         print(f"\n{cfg.transobj['lang8']} http://{web_address}")
     except Exception:
         pass
+
 
 def ms_to_time_string(*, ms=0, seconds=None):
     # 计算小时、分钟、秒和毫秒
